@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { deleteDB } from "idb";
 import { zipSync, strToU8 } from "fflate";
 import { openFitnessDb, getMeta, setMeta, getSettings, exportAll } from "@/data/db.js";
-import { detectFormat, parseFile, importFile, importText } from "@/data/import/index.js";
+import { detectFormat, parseFile, importFile, importText, importUrl } from "@/data/import/index.js";
 
 const bytesOf = (name) => new Uint8Array(readFileSync(resolve(import.meta.dirname, "../fixtures", name)));
 const enc = new TextEncoder();
@@ -95,6 +95,35 @@ describe("importFile и importText", () => {
     expect(report.settingsApplied).toBeGreaterThan(0);
     expect(await getSettings(fresh)).toMatchObject({ goalKg: 77, kcalLimit: 1700, proteinGoal: 165 });
     fresh.close();
+  });
+
+  it("importUrl подтягивает записи по ссылке и сливает их идемпотентно", async () => {
+    const payload = JSON.stringify({ weights: { "2025-03-10": 90.5 } });
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return { ok: true, text: async () => payload };
+    };
+    try {
+      const first = await importUrl(db, "https://example.test/data.json");
+      expect(first.weights.added).toBe(1);
+      const second = await importUrl(db, "https://example.test/data.json");
+      expect(second.weights).toMatchObject({ added: 0, unchanged: 1 });
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("importUrl сообщает понятную ошибку, если источник ответил неудачно", async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: false, status: 404, text: async () => "" });
+    try {
+      await expect(importUrl(db, "https://example.test/нет.json")).rejects.toThrow(/404/);
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 
   it("importText принимает вставку из буфера и отмечает время импорта так же, как importFile", async () => {

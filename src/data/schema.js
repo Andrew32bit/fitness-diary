@@ -22,6 +22,9 @@ export const SOURCE_PRIORITY = { "apple-export": 4, tcx: 3, shortcut: 2, chat: 1
 export const DEFAULT_SETTINGS = {
   goalKg: 80, startKg: 100, kcalLimit: 2000, zone2MaxHr: 140,
   proteinGoal: 150, fatGoal: 70, carbsGoal: 200,
+  // Адрес, откуда приложение подтягивает записи при открытии. По умолчанию пустой и
+  // задаётся на устройстве: ссылке на личные данные в публичном коде места нет.
+  syncUrl: "",
 };
 
 const OPTIONAL_NUMBERS = [

@@ -55,3 +55,18 @@ export async function importText(db, text) {
   await setMeta(db, "sync", { lastImportAt: new Date().toISOString() });
   return report;
 }
+
+/**
+ * Подтягивает записи по ссылке и сливает их. На этом держится автоподгрузка при
+ * открытии приложения: ссылка хранится в настройках на устройстве, поэтому в
+ * публичном коде её нет и никто посторонний адрес данных не узнает.
+ *
+ * Слияние идемпотентно, значит повторная подгрузка того же содержимого ничего не
+ * меняет и не создаёт дублей. Отказ сети обрабатывает вызывающий: приложение обязано
+ * открываться офлайн, просто без новых записей.
+ */
+export async function importUrl(db, url) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Источник данных ответил ${response.status}`);
+  return importText(db, await response.text());
+}

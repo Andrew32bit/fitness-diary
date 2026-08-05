@@ -87,6 +87,8 @@ describe("константы", () => {
     expect(DEFAULT_SETTINGS).toEqual({
       goalKg: 80, startKg: 100, kcalLimit: 2000, zone2MaxHr: 140,
       proteinGoal: 150, fatGoal: 70, carbsGoal: 200,
+      // Пустой по умолчанию: адрес личных данных задаётся на устройстве, не в коде.
+      syncUrl: "",
     });
   });
 });

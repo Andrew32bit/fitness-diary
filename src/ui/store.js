@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openFitnessDb, getSettings, getMeta, setMeta, exportAll } from "../data/db.js";
 import { normalizeWorkout, toNumber } from "../data/schema.js";
-import { importFile as importFileToDb, importText as importTextToDb } from "../data/import/index.js";
+import {
+  importFile as importFileToDb,
+  importText as importTextToDb,
+  importUrl as importUrlToDb,
+} from "../data/import/index.js";
 
 const byDateDesc = (a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
 const byDateAsc = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
@@ -46,6 +50,22 @@ export function useStore() {
       dbRef.current = db;
       await refresh();
       setReady(true);
+
+      // Автоподгрузка при открытии: если в настройках задан источник, тянем оттуда
+      // записи и сливаем. Отказ сети намеренно проглатывается — приложение обязано
+      // открываться офлайн, просто без новых данных; результат виден в настройках.
+      const url = (await getSettings(db)).syncUrl;
+      if (!url || cancelled) return;
+      try {
+        const report = await importUrlToDb(db, url);
+        if (cancelled) return;
+        const added = ["workouts", "days", "weights", "foods"].reduce((n, k) => n + report[k].added, 0);
+        await setMeta(db, "sync", { lastAutoSyncAt: new Date().toISOString(), lastAutoSyncAdded: added });
+      } catch (error) {
+        if (cancelled) return;
+        await setMeta(db, "sync", { lastAutoSyncError: error.message });
+      }
+      if (!cancelled) await refresh();
     })();
     return () => {
       cancelled = true;
@@ -63,6 +83,16 @@ export function useStore() {
     },
     async importText(text) {
       const report = await importTextToDb(dbRef.current, text);
+      await refresh();
+      return report;
+    },
+    /** Подтянуть записи из источника вручную, не дожидаясь следующего открытия. */
+    async syncNow() {
+      const url = (await getSettings(dbRef.current)).syncUrl;
+      if (!url) throw new Error("Источник данных не задан — впишите ссылку в настройках");
+      const report = await importUrlToDb(dbRef.current, url);
+      const added = ["workouts", "days", "weights", "foods"].reduce((n, k) => n + report[k].added, 0);
+      await setMeta(dbRef.current, "sync", { lastAutoSyncAt: new Date().toISOString(), lastAutoSyncAdded: added });
       await refresh();
       return report;
     },
