@@ -117,6 +117,43 @@ describe("parsePatch", () => {
     expect(out.workouts[0].start).toBe("2025-07-04T14:46:00");
   });
 
+  it("при двух оборотах «за» берёт длительность, близкую к записанным минутам", () => {
+    const out = parsePatch({
+      days: {
+        "2025-08-02": {
+          workouts: [{ type: "Бег", minutes: 44, note: "разминка за 5:00, затем 8 км за 44:26" }],
+        },
+      },
+    });
+    // Первое совпадение дало бы 300 секунд: длительность в разы меньше, темп втрое выше.
+    expect(out.workouts[0].durationSec).toBe(2666);
+  });
+
+  it("не берёт время из заметки, если оно далеко от записанных минут", () => {
+    const out = parsePatch({
+      days: { "2025-08-03": { workouts: [{ type: "Бег", minutes: 40, note: "отдых за 2:00" }] } },
+    });
+    expect(out.workouts[0].durationSec).toBe(2400);
+  });
+
+  it("условный слот не занимает время, взятое из заметки другой тренировки того же дня", () => {
+    const out = parsePatch({
+      days: {
+        "2025-08-01": {
+          workouts: [
+            { type: "Бег", minutes: 40, note: "6 км, 12:00-12:40" },
+            { type: "Бег", minutes: 20, note: "3 км" },
+          ],
+        },
+      },
+    });
+    // Без пропуска занятого времени вторая пробежка получила бы тот же ключ и исчезла.
+    expect(out.workouts[0].start).toBe("2025-08-01T12:00:00");
+    expect(out.workouts[1].start).toBe("2025-08-01T12:10:00");
+    expect(out.workouts[0].id).not.toBe(out.workouts[1].id);
+    expect(out.workouts).toHaveLength(2);
+  });
+
   it("без времени в заметке подставляет условное и не ломает идемпотентность", () => {
     const patch = { days: { "2025-07-05": { workouts: [{ type: "Бег", minutes: 30, note: "5 км" }] } } };
     const first = parsePatch(patch).workouts[0];

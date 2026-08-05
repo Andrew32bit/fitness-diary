@@ -81,13 +81,24 @@ function metricsFromNote(note) {
  * 44:26 темп выходил 7'19" вместо 7'23". Точное время есть в тексте, надо его взять.
  * Требуется предшествующее «за», иначе «темп 7:23/км» сошло бы за длительность.
  */
-function durationFromNote(note) {
-  const found = /за\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/i.exec(String(note || ""));
-  if (!found) return null;
-  const [, a, b, c] = found;
-  return c === undefined
-    ? Number(a) * 60 + Number(b)
-    : Number(a) * 3600 + Number(b) * 60 + Number(c);
+const DURATION_TOLERANCE_SEC = 90;
+
+function durationFromNote(note, minutes) {
+  const rounded = Math.round(minutes * 60);
+  const candidates = [...String(note || "").matchAll(/за\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/gi)].map(
+    ([, a, b, c]) =>
+      c === undefined ? Number(a) * 60 + Number(b) : Number(a) * 3600 + Number(b) * 60 + Number(c),
+  );
+  if (!candidates.length) return null;
+
+  // В заметке может оказаться несколько оборотов «за»: «разминка за 5:00, бег за 44:26».
+  // Брать первый нельзя — длительность занизилась бы в разы, а темп взлетел. Выбираем
+  // ближайшее к тому, что дневник записал минутами, и принимаем только если расхождение
+  // в пределах полутора минут. Это не догадка: точное значение обязано быть рядом с
+  // округлённым, а всё остальное — не длительность этой тренировки, и тогда честнее
+  // остаться с минутами, чем подставить чужое число.
+  const best = candidates.reduce((a, b) => (Math.abs(b - rounded) < Math.abs(a - rounded) ? b : a));
+  return Math.abs(best - rounded) <= DURATION_TOLERANCE_SEC ? best : null;
 }
 
 /**
@@ -107,35 +118,50 @@ function startFromNote(date, note) {
   return `${date}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
 }
 
+const MIN_GAP_MIN = 10;
+const minutesOfDay = (iso) => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16));
+const atMinutes = (date, total) =>
+  `${date}T${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}:00`;
+
 /**
- * Условное время старта для перенесённой из дневника тренировки. В дневнике времени
- * нет, но ключ тренировки строится из времени и типа, поэтому одинаковое время для
- * всех записей дня склеивало бы две пробежки одного дня в одну — и вторая пропадала
- * бы молча. Реальный случай: 14 и 19 мая по две пробежки, терялось 9.71 км.
+ * Раскладывает тренировки одного дня по временам старта. Где в заметке есть настоящее
+ * время — берём его; остальным выдаём условные слоты с шагом десять минут, ПРОПУСКАЯ
+ * слоты ближе десяти минут к уже занятому времени.
  *
- * Шаг ровно десять минут, а не одна: слияние считает одной тренировкой всё, что
- * начинается в пределах 120 секунд друг от друга, поэтому соседние минуты не спасли бы.
+ * Без этого пропуска условный слот мог совпасть с настоящим временем другой тренировки
+ * того же дня: ключи строятся из времени и типа, две записи схлопнулись бы в одну, и
+ * одна тренировка исчезла бы молча. Десять минут, а не одна, потому что слияние считает
+ * одной тренировкой всё, что начинается в пределах 120 секунд.
  *
- * Номер берётся из порядка записей в дне, поэтому повторный импорт того же файла даёт
- * те же ключи и ничего не дублирует.
+ * Порядок записей в дне определяет результат целиком, поэтому повторный импорт того же
+ * файла даёт те же ключи.
  */
-function diaryStart(date, order) {
-  const offset = order * 10;
-  const hh = String(12 + Math.floor(offset / 60)).padStart(2, "0");
-  const mm = String(offset % 60).padStart(2, "0");
-  return `${date}T${hh}:${mm}:00`;
+function assignStarts(date, works) {
+  const noteStarts = works.map((raw) => startFromNote(date, raw.note));
+  const taken = noteStarts.filter(Boolean).map(minutesOfDay);
+  const isFree = (m) => taken.every((t) => Math.abs(t - m) >= MIN_GAP_MIN);
+  let slot = 0;
+  return works.map((raw, i) => {
+    if (noteStarts[i]) return noteStarts[i];
+    let total = 12 * 60 + slot * MIN_GAP_MIN;
+    while (!isFree(total)) {
+      slot += 1;
+      total = 12 * 60 + slot * MIN_GAP_MIN;
+    }
+    taken.push(total);
+    slot += 1;
+    return atMinutes(date, total);
+  });
 }
 
 /** Тренировка из формата дневника: тип по-русски, минуты, ккал, заметка. */
-function fromDiaryWorkout(raw, date, order) {
+function fromDiaryWorkout(raw, date, start) {
   const minutes = toNumber(raw.minutes);
   if (!minutes) throw new Error(`Тренировка ${date} без длительности`);
   // trim обязателен: JSON часто вставляется руками, и «Бег » с лишним пробелом
   // иначе молча уходит в «Другое» вместо бега.
   const type = RU_TO_TYPE[String(raw.type || "").trim().toLowerCase()] || "other";
-  // Настоящее время и точная длительность из текста приоритетнее условных.
-  const start = startFromNote(date, raw.note) ?? diaryStart(date, order);
-  const durationSec = durationFromNote(raw.note) ?? Math.round(minutes * 60);
+  const durationSec = durationFromNote(raw.note, minutes) ?? Math.round(minutes * 60);
   const fromNote = metricsFromNote(raw.note);
   return {
     id: workoutKey(start, type),
@@ -195,16 +221,17 @@ export function parsePatch(input) {
   const days = asDayList(data.days || data.entries);
   const workouts = [...(Array.isArray(data.workouts) ? data.workouts : [])];
   for (const day of days) {
-    let order = 0;
+    const real = [];
     for (const raw of day.workouts) {
       if (isDayNote(raw)) {
         const text = raw.note || raw.type || "";
         if (text) day.note = day.note ? `${day.note}. ${text}` : text;
         continue;
       }
-      workouts.push(fromDiaryWorkout(raw, day.date, order));
-      order++;
+      real.push(raw);
     }
+    const starts = assignStarts(day.date, real);
+    real.forEach((raw, i) => workouts.push(fromDiaryWorkout(raw, day.date, starts[i])));
     delete day.workouts;
   }
 
