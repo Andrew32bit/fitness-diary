@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="ru_RU">
+ <Record type="HKQuantityTypeIdentifierBodyMass" startDate="2025-03-10 08:10:00 +0300" value="90.5" unit="kg"/>
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="44.4333" durationUnit="min"
+          sourceName="Apple Watch" startDate="2026-08-05 14:46:00 +0300" endDate="2026-08-05 15:30:26 +0300">
+  <MetadataEntry key="HKIndoorWorkout" value="0"/>
+  <MetadataEntry key="HKElevationAscended" value="1400 cm"/>
+  <MetadataEntry key="HKWorkoutEffortScore" value="6"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" sum="627" unit="kcal"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierBasalEnergyBurned" sum="118" unit="kcal"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" sum="6.01" unit="km"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" average="152" minimum="98" maximum="171" unit="count/min"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierRunningPower" average="290" unit="W"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierStepCount" sum="7065" unit="count"/>
+ </Workout>
+ <Workout workoutActivityType="HKWorkoutActivityTypeSwimming" duration="30" durationUnit="min"
+          startDate="2026-06-15 19:00:00 +0300" endDate="2026-06-15 19:30:00 +0300">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceSwimming" sum="1200" unit="m"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" sum="410" unit="kcal"/>
+ </Workout>
+ <Workout workoutActivityType="HKWorkoutActivityTypeTraditionalStrengthTraining" duration="50" durationUnit="min"
+          startDate="2026-05-20 20:00:00 +0300" endDate="2026-05-20 20:50:00 +0300"/>
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="60.2166" durationUnit="min"
+          startDate="2026-07-24 12:00:00 +0300" endDate="2026-07-24 13:00:13 +0300"
+          totalDistance="8.38" totalDistanceUnit="km" totalEnergyBurned="903" totalEnergyBurnedUnit="kcal"/>
+</HealthData>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+  xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
+ <Activities>
+  <Activity Sport="Running">
+   <Id>2026-08-05T11:46:00Z</Id>
+   <Lap StartTime="2026-08-05T11:46:00Z">
+    <TotalTimeSeconds>2666</TotalTimeSeconds>
+    <DistanceMeters>6010</DistanceMeters>
+    <Calories>627</Calories>
+    <AverageHeartRateBpm><Value>152</Value></AverageHeartRateBpm>
+    <MaximumHeartRateBpm><Value>171</Value></MaximumHeartRateBpm>
+    <Intensity>Active</Intensity>
+    <Extensions><ns3:LX><ns3:AvgRunCadence>159</ns3:AvgRunCadence><ns3:AvgWatts>290</ns3:AvgWatts></ns3:LX></Extensions>
+   </Lap>
+  </Activity>
+ </Activities>
+</TrainingCenterDatabase>
